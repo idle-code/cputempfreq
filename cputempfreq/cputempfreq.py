@@ -2,6 +2,7 @@
 from time import sleep
 import click
 import csv
+from contextlib import contextmanager
 
 
 def get_core_cpufreq_info(core_id: int, property_name: str) -> str:
@@ -14,17 +15,29 @@ def get_thermal_info(zone_id: int, property_name: str) -> str:
         return property_file.read()
 
 
+@contextmanager
+def open_logfile(logfile):
+    if logfile == '-':
+        import sys
+        yield sys.stdout
+    else:
+        with open(logfile, 'w', newline='') as logfile_fd:
+            yield logfile_fd
+
+
 @click.command()
-@click.option("--logfile", default="cpu_info.csv", help="Log filename")
+@click.option("--logfile", default="cpu_info.csv", type=click.Path(allow_dash=True, dir_okay=False, exists=False), help="Log filename")
 @click.option("--delay", default=1.0, type=float, help="Delay (in seconds) between readings")
-@click.option("--core-count", default=8, type=int, help="Number of cores to check frequency")
-@click.option("--thermal-zone-count", default=4, type=int, help="Number of thermal zones for temperature checks")
-@click.option("--verbose/--no-verbose", default=False, help="More verbose output")
+@click.option("--core-count", default=8, type=int, help="Number of cores to monitor frequency")
+@click.option("--thermal-zone-count", default=4, type=int, help="Number of thermal zones for temperature monitoring")
+@click.option("--verbose/--no-verbose", default=False, help="Enable verbose output")
 def main(logfile: str, delay: float, core_count: int, thermal_zone_count: int, verbose: bool):
     core_names = [f"core_{i}" for i in range(core_count)]
     zone_names = [f"thermal_zone_{i}" for i in range(thermal_zone_count)]
     csv_field_names = core_names + zone_names
-    with open(logfile, 'w', newline='') as csv_file:
+
+
+    with open_logfile(logfile) as csv_file:
         if verbose:
             print("Writing CSV header")
         writer = csv.DictWriter(csv_file, fieldnames=csv_field_names)
@@ -46,7 +59,7 @@ def main(logfile: str, delay: float, core_count: int, thermal_zone_count: int, v
             if verbose:
                 print(f"Zone {zone_id}: {temp}*C")
 
-        with open(logfile, 'a', newline='') as csv_file:
+        with open_logfile(logfile) as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=csv_field_names)
             writer.writerow(cpu_data)
         if verbose:
