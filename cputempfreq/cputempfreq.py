@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-from time import sleep
 import click
 import csv
+import os
+from time import sleep
 from contextlib import contextmanager
 
 
@@ -16,12 +17,12 @@ def get_thermal_info(zone_id: int, property_name: str) -> str:
 
 
 @contextmanager
-def open_logfile(logfile):
-    if logfile == '-':
+def open_logfile(path):
+    if path == '-':
         import sys
         yield sys.stdout
     else:
-        with open(logfile, 'w', newline='') as logfile_fd:
+        with open(path, 'a', newline='') as logfile_fd:
             yield logfile_fd
 
 
@@ -36,6 +37,8 @@ def main(logfile: str, delay: float, core_count: int, thermal_zone_count: int, v
     zone_names = [f"thermal_zone_{i}" for i in range(thermal_zone_count)]
     csv_field_names = core_names + zone_names
 
+    if os.path.exists(logfile):
+        os.remove(logfile)
 
     with open_logfile(logfile) as csv_file:
         if verbose:
